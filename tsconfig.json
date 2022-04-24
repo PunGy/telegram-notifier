@@ -1,0 +1,25 @@
+{
+    "compilerOptions": {
+        "module": "commonjs",
+        "target": "esnext",
+        "moduleResolution": "node",
+        "allowSyntheticDefaultImports": true,
+        "esModuleInterop": true,
+        "baseUrl": "./src",
+        "rootDir": "./src",
+        "outDir": "./bin",
+        "noImplicitAny": true,
+        "strictNullChecks": true,
+        "strictBindCallApply": true,
+        "strictFunctionTypes": true,
+        "noImplicitThis": true,
+        "useUnknownInCatchVariables": true,
+        "lib": [
+            "es6"
+        ]
+    },
+    "include": [
+        "src/**/*"
+    ],
+    "exclude": ["node_modules", "bin"],
+}
