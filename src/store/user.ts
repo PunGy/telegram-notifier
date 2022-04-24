@@ -1,79 +1,48 @@
-import { has } from 'fp-ts/lib/Record'
 import { fromNullable, none, some } from 'fp-ts/lib/Option'
 
+export interface ListenParameter {
+    id: number;
+    name: string;
+}
 export interface User {
-    id: string;
-    login: string;
-    password: string;
-}
-
-export interface UserPoster extends User
-{
-    type: 'poster';
+    id: number;
     subscribers: Array<string>;
-}
-export interface UserSubscriber extends User
-{
-    type: 'subscriber';
-    listen: Array<string>;
+    listen: Array<ListenParameter>;
 }
 
-type StorePosters = Record<string, UserPoster>
-type StoreSubscribers = Record<string, UserSubscriber>
+type Store = Map<number, User>
+const store: Store = new Map()
 
-const storePosters: StorePosters = {}
-const storeSubscribers: StoreSubscribers = {}
-
-export type UserState = UserPoster | UserSubscriber
-export type UserStore = Record<string, User>
-
-export const createUserPoster = (id: string, login: string, password: string): UserPoster => ({
+export const createUserPoster = (id: number): User => ({
     id,
-    login,
-    password,
-    type: 'poster',
     subscribers: [],
-})
-
-export const createUserSubscriber = (id: string, login: string, password: string): UserSubscriber => ({
-    id,
-    login,
-    password,
-    type: 'subscriber',
     listen: [],
 })
 
 // Only add a new user. If the user are already there - it would be not rewrote
-export const addUser = <Store extends UserStore, UserType extends User>(store: Store) => (user: UserType) =>
+export const addUser = (store: Store) => (user: User) =>
 {
-    if (!has(user.id, store))
-        (store as UserStore)[user.id] = user
+    if (store.has(user.id))
+        store.set(user.id, user)
     return user
 }
 
-export const deleteUser = <Store extends UserStore, UserType extends User>(store: Store) => (user: UserType) =>
+export const deleteUser = (store: Store) => (user: User) =>
 {
-    if (user.id in store)
+    if (store.has(user.id))
     {
-        delete store[user.id]
+        store.delete(user.id)
         return some(user)
     }
     return none
 }
 
-export const getUser = <Store extends UserStore, UserType extends User>(store: Store) => (id: string) => (
-    fromNullable(store[id] as UserType)
+export const getUser = (store: Store) => (id: number) => (
+    fromNullable(store.get(id))
 )
 
-
-export const useStorePosters = () => ({
-    addUser: addUser<StorePosters, UserPoster>(storePosters),
-    getUser: getUser<StorePosters, UserPoster>(storePosters),
-    deleteUser: deleteUser<StorePosters, UserPoster>(storePosters),
-})
-
-export const useStoreSubscribers = () => ({
-    addUser: addUser<StoreSubscribers, UserPoster>(storeSubscribers),
-    getUser: getUser<StoreSubscribers, UserSubscriber>(storeSubscribers),
-    deleteUser: deleteUser<StoreSubscribers, UserPoster>(storeSubscribers),
+export const useStore = () => ({
+    addUser: addUser(store),
+    getUser: getUser(store),
+    deleteUser: deleteUser(store),
 })

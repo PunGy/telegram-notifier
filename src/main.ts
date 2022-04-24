@@ -2,14 +2,13 @@
 import 'app-module-path/register'
 
 import * as fs from 'fs'
-import { Markup, Telegraf } from 'telegraf'
-import * as O from 'fp-ts/lib/Option'
+import { Telegraf } from 'telegraf'
 
 const fileName = 'main'
 
 // Configure runtime environment
 import { config } from 'dotenv'
-import { NotifyKeyboard } from './helpers/keyboard'
+import { connectDatabase } from './helpers/database'
 import { getArgs, Arguments } from 'helpers/args'
 import { useLogger } from 'helpers/logger'
 
@@ -37,15 +36,13 @@ if (args.test)
 }
 config({ path: envFile })
 
+const db = connectDatabase()
+
 // Main app logic
 import { isNil } from 'helpers/functions'
 import { LocalContext } from 'types/context'
 import {
-    createUserSubscriber,
-    useStoreSubscribers,
-    createUserPoster,
-    useStorePosters,
-    UserState,
+    useStore,
 } from 'store/user'
 
 
@@ -57,55 +54,56 @@ if (isNil(process.env.BOT_TOKEN))
 
 const bot = new Telegraf<LocalContext>(process.env.BOT_TOKEN)
 
-const StorePosters = useStorePosters()
-const StoreSubscribers = useStoreSubscribers()
+const Store = useStore()
 
 // Middlewares
 
-bot.use((ctx, next) =>
-{
-    Logger.info(ctx.from)()
-    if (isNil(ctx.from)) return
+db.values().all()
+    .then((users) =>
+    {
+        if (users.length > 0)
+        {
+            users.forEach((user) =>
+            {
+                Store.addUser(JSON.parse(user))
+            })
+        }
 
-    // Setup user state
-    const userId = String(ctx.from.id)
-    ctx.userState = O.fold<UserState, O.Option<UserState>>(
-        () => StoreSubscribers.getUser(userId),
-        O.some,
-    )(StorePosters.getUser(userId))
+        bot.use((ctx, next) =>
+        {
+            Logger.info(ctx.from)()
+            if (isNil(ctx.from)) return
 
-    next()
-})
+            // Setup user state
+            ctx.userState = Store.getUser(ctx.from.id)
 
-bot.command('start', async (ctx, next) =>
-{
-    Logger.info(ctx.update)()
+            next()
+        })
 
-    const poster = createUserPoster('id', 'max', 'max')
-    poster.subscribers = ['id1', 'id2', 'id3']
+        bot.command('start', async (ctx, next) =>
+        {
+            Logger.info(ctx.update)()
 
-    await ctx.reply('Hello', {
-        reply_markup: NotifyKeyboard(poster),
+            Logger.info('done!')()
+
+            next()
+        })
+
+        bot.on('callback_query', (ctx) =>
+        {
+            Logger.info(ctx.update)()
+        })
+
+        bot
+            .launch()
+            .then(Logger.info('Bot started'))
+
+
+        const shutdownBot = (signal: string) => () =>
+        {
+            bot.stop(signal)
+            Logger.info('Bot is turned off')()
+        }
+        process.once('SIGINT', shutdownBot('SIGINT'))
+        process.once('SIGTERM', shutdownBot('SIGTERM'))
     })
-    Logger.info('done!')()
-
-    next()
-})
-
-bot.on('callback_query', (ctx) =>
-{
-    Logger.info(ctx.update)()
-})
-
-bot
-    .launch()
-    .then(Logger.info('Bot started'))
-
-
-const shutdownBot = (signal: string) => () =>
-{
-    bot.stop(signal)
-    Logger.info('Bot is turned off')()
-}
-process.once('SIGINT', shutdownBot('SIGINT'))
-process.once('SIGTERM', shutdownBot('SIGTERM'))
