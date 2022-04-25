@@ -1,6 +1,6 @@
 import arg from 'arg'
-import { pipe } from 'fp-ts/lib/function'
-import { trimStart } from './functions'
+import { pipe } from 'fp-ts/lib/function.js'
+import { trimStart } from './functions/index.js'
 
 interface Arguments {
     test?: boolean;

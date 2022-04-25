@@ -1,3 +1,3 @@
-export { default as isNil } from './isNil'
-export { default as reverse } from './reverse'
-export * from './trim'
+export { default as isNil } from './isNil.js'
+export { default as reverse } from './reverse.js'
+export * from './trim.js'

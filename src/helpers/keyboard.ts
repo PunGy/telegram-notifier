@@ -1,6 +1,3 @@
-import { Markup } from 'telegraf'
-import { UserPoster } from '../store/user'
-
 export const BACK_SYMBOL = '↩️'
 export const FINISH_SYMBOL = '✅'
 
@@ -9,8 +6,6 @@ export const callbackButton = (text: string, data: string) => ({
     callback_data: data,
 })
 
-export const NotifyKeyboard = (poster: UserPoster) => (
-    Markup.keyboard([
-        [callbackButton('Notify', `${poster.id}: ${poster.subscribers.join(',')}`)],
-    ]).reply_markup
-)
+export const button = (text: string) => ({
+    text,
+})

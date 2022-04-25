@@ -1,5 +1,5 @@
-import { pipe } from 'fp-ts/lib/function'
-import reverse from './reverse'
+import { pipe } from 'fp-ts/lib/function.js'
+import reverse from './reverse.js'
 
 export function trimStart(str: string, char = ' '): string
 {

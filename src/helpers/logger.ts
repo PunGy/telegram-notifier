@@ -1,11 +1,11 @@
-import * as C from 'fp-ts/Console'
-import { IO } from 'fp-ts/IO'
-import { create as createDate } from 'fp-ts/Date'
+import * as C from 'fp-ts/lib/Console.js'
+import { IO } from 'fp-ts/lib/IO.js'
+import { create as createDate } from 'fp-ts/lib/Date.js'
 
 type Level = 'DEBUG' | 'INFO' | 'WARNING' | 'ERROR'
 
 interface Entry <T> {
-    message: T;
+    messages: Array<T>;
     app: string;
     date: Date;
     level: Level;
@@ -14,46 +14,46 @@ interface Entry <T> {
 
 function log<T>(logger: <A>(x: A) => IO<void>, entry: Entry<T>)
 {
-    const message = typeof entry.message === 'object'
-        ? JSON.stringify(entry.message, null, 2) : entry.message
-    return logger(`${entry.level} [${entry.app}] ${entry.date.toLocaleString()}: ${message}`)
+    const message = entry.messages.map((message) => typeof message === 'object'
+        ? JSON.stringify(message, null, 2) : message,
+    ).join(', ')
+
+    logger(`${entry.level} [${entry.app}] ${entry.date.toLocaleString()}: ${message}`)()
 }
 
-type LoggerFn<T> = (message: T, date?: Date) => IO<void>
-
-const info = <T>(app: string): LoggerFn<T> => (message, date) => log(
+const info = <T>(app: string) => (...messages: Array<T>) => log(
     C.info,
     {
-        message,
+        messages,
         app,
-        date: date ?? createDate(),
+        date: createDate(),
         level: 'INFO',
     },
 )
-const debug = <T>(app: string): LoggerFn<T> => (message, date) => log(
+const debug = <T>(app: string) => (...messages: Array<T>) => log(
     C.log,
     {
-        message,
+        messages,
         app,
-        date: date ?? createDate(),
+        date: createDate(),
         level: 'DEBUG',
     },
 )
-const warning = <T>(app: string): LoggerFn<T> => (message, date) => log(
+const warning = <T>(app: string) => (...messages: Array<T>) => log(
     C.warn,
     {
-        message,
+        messages,
         app,
-        date: date ?? createDate(),
+        date: createDate(),
         level: 'WARNING',
     },
 )
-const error = <T>(app: string): LoggerFn<T> => (message, date) => log(
+const error = <T>(app: string) => (...messages: Array<T>) => log(
     C.error,
     {
-        message,
+        messages,
         app,
-        date: date ?? createDate(),
+        date: createDate(),
         level: 'ERROR',
     },
 )
