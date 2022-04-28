@@ -1,6 +1,6 @@
 import { join } from 'path'
 import { Low, JSONFile } from 'lowdb'
-import { Store, User } from '../user.js'
+import { Store, User } from '../store/user.js'
 
 type JSONUser = Omit<User, 'subscribers'> & { subscribers: Array<number>; }
 type JSONStore = Record<string, JSONUser>
@@ -15,8 +15,12 @@ export const connectDatabase = () =>
 export const write = (db: Low<JSONStore>) => async (store: Store) =>
 {
     const raw: JSONStore = {}
-    for (const key in store)
-        raw[key].subscribers = Array.from(raw[key].subscribers)
+    store.forEach((value, key) =>
+    {
+        // @ts-ignore
+        raw[key] = { ...value }
+        raw[key].subscribers = Array.from(value.subscribers)
+    })
 
     db.data = raw
     await db.write()

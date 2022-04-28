@@ -1,6 +1,6 @@
 import { Context as TelegrafContext } from 'telegraf'
 import { Option } from 'fp-ts/lib/Option.js'
-import { User } from './user.js'
+import { User } from './store/user.js'
 
 export interface LocalContext extends TelegrafContext
 {

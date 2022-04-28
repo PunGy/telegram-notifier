@@ -6,15 +6,15 @@ import { pipe } from 'fp-ts/lib/function.js'
 import {
     createUser,
     User,
-    useStore,
-} from './user.js'
+    useStore as useUserStore,
+} from './store/user.js'
 import { Context, LocalContext } from './context.js'
 import { connectDatabase, read, write } from './helpers/database.js'
 import { getArgs, Arguments } from './helpers/args.js'
 import { isNil } from './helpers/functions/index.js'
 import { useLogger } from './helpers/logger.js'
 import { NotifyKeyboard } from './keyboards.js'
-import { decrypt, encrypt } from './encryption.js'
+import { createInvitation, useStore as useInvitationsStore } from './store/invitations.js'
 
 
 // Configure runtime
@@ -50,14 +50,6 @@ if (isNil(process.env.BOT_TOKEN))
     process.exit(1)
 }
 
-if (isNil(process.env.AES_KEY))
-{
-    Logger.error('AES key is not defined! Please, define it in the .env file. It should be 16 numbers, separated by comma')
-    process.exit(1)
-}
-
-const AES_KEY = process.env.AES_KEY.split(',').map(x => parseInt(x, 10))
-
 const bot = new Telegraf<LocalContext>(process.env.BOT_TOKEN)
 
 const db = connectDatabase()
@@ -71,9 +63,10 @@ const notAuthorizedReply = (ctx: Context) => () => ctx.reply('You are not author
 // Middlewares
 
 DB.read()
-    .then((store) =>
+    .then((userStore) =>
     {
-        const Store = useStore(store)
+        const UserStore = useUserStore(userStore)
+        const InvitationsStore = useInvitationsStore(new Map())
 
         bot.use((ctx, next) =>
         {
@@ -81,7 +74,7 @@ DB.read()
             if (isNil(ctx.from)) return
 
             // Setup user state
-            ctx.userState = Store.getUser(ctx.from.id)
+            ctx.userState = UserStore.getUser(ctx.from.id)
 
             next()
         })
@@ -93,8 +86,8 @@ DB.read()
             await O.fold<User, Promise<any>>(
                 () =>
                 {
-                    Store.addUser(createUser(ctx.from.id))
-                    DB.write(store)
+                    UserStore.addUser(createUser(ctx.from.id))
+                    DB.write(userStore)
                     return ctx.reply('You was successfully registered!', { reply_markup: NotifyKeyboard() })
                 },
                 () => ctx.reply('You are already registered!', { reply_markup: NotifyKeyboard() }),
@@ -111,11 +104,11 @@ DB.read()
                 {
                     try
                     {
-                        // We need to encrypt user ID and will use this as key for further subscribing
-                        const encryptedId = encrypt(AES_KEY, user.id)
+                        const [key, id] = createInvitation(user.id)
+                        InvitationsStore.addInvitation(key, id)
 
                         return ctx.reply(`Share this key to those who wants to subscribes to you`)
-                            .then(() => ctx.reply(encryptedId))
+                            .then(() => ctx.reply(key))
                     }
                     catch (e)
                     {
@@ -155,15 +148,24 @@ DB.read()
                             + '\n\nFor receiving a key, publisher should run /get_subscribers',
                         )
 
-                        const id = decrypt(AES_KEY, key)
                         return pipe(
-                            Store.addSubscriber(id, user.id),
+                            InvitationsStore.getId(key),
                             O.fold(
-                                () => ctx.reply('Cannot find such publisher! Ensure the is key is right'),
-                                () =>
+                                () => ctx.reply('No such invitation! Ensure the is key is right'),
+                                (id) =>
                                 {
-                                    DB.write(store)
-                                    return ctx.reply('Successfully subscribed to a new publisher!')
+                                    InvitationsStore.deleteInvitation(key)
+                                    return pipe(
+                                        UserStore.addSubscriber(id, user.id),
+                                        O.fold(
+                                            () => ctx.reply('Cannot find such publisher!'),
+                                            () =>
+                                            {
+                                                DB.write(userStore)
+                                                return ctx.reply('Successfully subscribed to a new publisher!')
+                                            },
+                                        ),
+                                    )
                                 },
                             ),
                         )
